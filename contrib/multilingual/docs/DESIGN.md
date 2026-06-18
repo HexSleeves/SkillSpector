@@ -188,3 +188,105 @@ contrib/multilingual/
     ├── README.md        # user-facing guide
     └── DESIGN.md        # this file
 ```
+
+## Rejected Alternatives
+
+### Why ThreadPoolExecutor + asyncio, not full asyncio?
+
+`graph.invoke(state)` is a synchronous blocking call.  LangGraph's compiled
+graph executes nodes sequentially and fans out analyzers internally — it does
+not expose an async entry point.  Replacing `graph.invoke()` with an async
+equivalent would require modifying upstream's graph compilation, which violates
+the zero-intrusion constraint.
+
+The alternative — `asyncio.to_thread()` wrapping `graph.invoke()` inside an
+async event loop — adds a scheduling layer without removing the thread-per-skill
+requirement.  It would also require all batch orchestration code to be async,
+complicating the CLI layer (`argparse`, Rich console output) with no throughput
+gain.
+
+`ProcessPoolExecutor` was tested and rejected: macOS Python 3.13 `spawn` mode
+reimports LangGraph + LangChain per child process, causing 30+ second startup
+timeouts.  `fork` mode is unavailable on macOS since Python 3.8.
+
+### Why monkey-patch, not fork upstream?
+
+Forking would create a permanent divergence.  Every upstream release would
+require rebasing and re-verifying.  The monkey-patch approach keeps the contrib
+module as a drop-in adapter: it tracks upstream automatically, and if upstream
+adds a `response_schema` override (e.g., an env var `SKILLSPECTOR_RAW_LLM`),
+the patches become no-ops and can be removed without code changes.
+
+### Why 8 gap-fill rules, not a full second graph pass?
+
+The 8 gap-fill rules (P5, P6-P8, MP1-MP3, RA1-RA2) are the intersection of:
+
+1. **English-keyword dependency.**  Each rule's static analyzer uses regex
+   patterns that match English text only (e.g., "print your system prompt",
+   "clear your memory", "you are no longer an assistant").  Non-English
+   text bypasses these patterns entirely.
+2. **No semantic-analyzer equivalent.**  SSD (semantic security discovery),
+   SDI (semantic developer intent), and SQP (semantic quality policy) cover
+   17 other English-keyword rules because those rules detect semantics (intent,
+   policy violation) rather than specific English phrases.
+3. **LLM-solvable.**  The 8 rules describe security concepts (harmful content,
+   memory manipulation, rogue persistence) that an LLM can recognize in any
+   language when given a targeted prompt.
+
+The standard for inclusion is: the static regex is provably English-only (by
+inspecting `static_patterns_*.py` source), and no semantic analyzer claims the
+rule ID in its coverage set.  Rules satisfying both criteria are gap-fill
+candidates.
+
+## Patch 2/3 Deep Dive: JSON Parse + Pydantic Validate
+
+Patches 2 and 3 replace `LLMAnalyzerBase.parse_response` and
+`LLMMetaAnalyzer.parse_response` respectively.  Both follow the same pipeline:
+
+```
+raw LLM string → _strip_markdown_fences() → json.loads() → model_validate() → Finding objects
+```
+
+The two-step parse (stdlib `json.loads` then Pydantic `model_validate`) exists
+because:
+
+1. `json.loads` is fast, deterministic, and raises clear `JSONDecodeError` on
+   malformed output — we catch this and return `[]` (empty findings).
+2. `model_validate` enforces the schema: required fields, literal enums,
+   confidence range, string length.  Schema violations are caught and returned
+   as `[]` with a warning log.
+
+**Error propagation:** If the LLM returns invalid JSON or schema-mismatched
+output, the analyzer returns `[]` (no findings for that file).  The scan
+continues — a single malformed LLM response never blocks the pipeline.
+The warning is logged at `WARNING` level so operators can monitor parse-failure
+rates without sifting through debug logs.
+
+Patch 3 adds a `_sanitize_meta_finding()` pass after validation to handle
+known LLM quirks: `null` string fields → `""`, unrecognized enum values
+(e.g., `"none"`) → `"low"`.  These are applied post-validation because they
+represent recoverable soft errors, not hard schema violations.
+
+## Gap-Fill Rule Selection Criteria
+
+The 25 English-keyword static rules in upstream SkillSpector are:
+
+| Group | Rule IDs | Detection method |
+|-------|----------|-----------------|
+| Prompt injection | P1-P4 | English-keyword regex |
+| Harmful content | **P5** | English-keyword regex |
+| System prompt leakage | **P6-P8** | English-keyword regex |
+| Data exfiltration | E1-E4 | English-keyword regex |
+| Privilege escalation | PE1-PE3 | English-keyword regex |
+| Excessive agency | EA1-EA4 | English-keyword regex |
+| Output handling | OH1-OH3 | English-keyword regex |
+| Trigger abuse | TR1-TR3 | English-keyword regex |
+| Memory poisoning | **MP1-MP3** | English-keyword regex |
+| Rogue agent | **RA1-RA2** | English-keyword regex |
+
+SSD, SDI, and SQP (semantic analyzers) cover the semantic intent behind
+P1-P4, E1-E4, PE1-PE3, EA1-EA4, OH1-OH3, and TR1-TR3 — 17 rules total.
+The remaining 8 rules (P5, P6-P8, MP1-MP3, RA1-RA2) are flagged as
+gap-fill targets because their static detectors rely on specific English
+phrases (e.g., `r"(clear|erase|wipe|forget)\s+(your|my|the)\s+(memory|context|instructions)"`)
+that have zero recall on non-English text.

@@ -1,8 +1,9 @@
 # Multilingual Batch Scanner for SkillSpector
 
-Scans **directories** of AI agent skills in parallel, with automatic language
-detection and targeted LLM gap-fill for non-English skills.  Zero changes to
-upstream `src/skillspector/`.
+SkillSpector is a static+LLM security analyzer for AI agent skill definitions.
+This module extends it to scan **directories** of skills in parallel, with
+automatic language detection and targeted LLM gap-fill for non-English skills.
+Zero changes to upstream `src/skillspector/`.
 
 ## What it does
 
