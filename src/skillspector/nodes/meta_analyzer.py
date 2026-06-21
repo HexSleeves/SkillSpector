@@ -380,9 +380,11 @@ def meta_analyzer(state: SkillspectorState) -> MetaAnalyzerResponse:
     metadata_text = _format_metadata(manifest)
     files_with_findings = sorted({f.file for f in findings})
 
-    analyzer = LLMMetaAnalyzer(model=model)
-
     try:
+        # Construct inside the try so a chat-model construction failure is caught
+        # and recorded as a degraded LLM call (consistent with the semantic
+        # analyzers) rather than crashing the whole graph.
+        analyzer = LLMMetaAnalyzer(model=model)
         batches = analyzer.get_batches(files_with_findings, file_cache, findings)
         logger.debug(
             "Meta-analyzer: %d files -> %d batches (model=%s)",
