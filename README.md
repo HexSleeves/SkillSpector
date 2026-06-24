@@ -254,6 +254,18 @@ Register it with Claude Code via:
 claude mcp add skillspector -- skillspector mcp
 ```
 
+> **Security — HTTP transport trust model**
+>
+> The HTTP transport ships **without authentication**. Any caller that can
+> reach the port can invoke `scan_skill`. Over stdio or `127.0.0.1` this is
+> the same trust boundary as the CLI. If you bind to a routable interface:
+>
+> - Sit the server behind an authenticating reverse proxy (e.g. nginx + mTLS)
+>   before exposing it externally.
+> - Local paths and `file://` URLs are **automatically rejected** over HTTP to
+>   prevent unauthenticated callers from reading arbitrary host files. Only
+>   remote Git and `.zip` URLs are accepted.
+
 ## Vulnerability Patterns
 
 SkillSpector detects **68 vulnerability patterns** across 17 categories:
