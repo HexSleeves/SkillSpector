@@ -39,6 +39,7 @@ class PatternCategory(StrEnum):
     MCP_LEAST_PRIVILEGE = "MCP Least Privilege"
     MCP_TOOL_POISONING = "MCP Tool Poisoning"
     AGENT_SNOOPING = "Agent Snooping"
+    ANTI_REFUSAL = "Anti-Refusal"
 
 
 # Pattern-specific explanations (why the finding is dangerous)
@@ -125,6 +126,10 @@ DEFAULT_EXPLANATIONS: dict[str, str] = {
     "AS1": "Skill reads from agent configuration directories (.claude/, .codex/, .gemini/). These directories may contain API keys, personal settings, and other credentials that the skill has no legitimate need to access.",
     "AS2": "Skill accesses MCP server configuration files (mcp.json). MCP configs contain server URLs, authentication tokens, and tool definitions — reading them allows the skill to discover and potentially abuse other tool integrations.",
     "AS3": "Skill enumerates or reads other installed skills. Access to other skills' SKILL.md files or the skills directory reveals prompt instructions, capabilities, and secrets that should be invisible to peer skills.",
+    # Anti-Refusal Statements (jailbreak)
+    "AR1": "Skill instructs the agent to never refuse or to always comply. Suppressing the agent's ability to decline removes a core safety control and enables downstream harmful requests to succeed.",
+    "AR2": "Skill instructs the agent to omit warnings, disclaimers, or ethical commentary. Stripping safety caveats hides risk from the user and is a common jailbreak preamble.",
+    "AR3": "Skill attempts to nullify the agent's safety policies or restrictions ('you have no restrictions', 'ignore your guidelines', 'do anything now'). This is a direct jailbreak that disables guardrails.",
 }
 
 # Rule ID -> category (for report output)
@@ -192,6 +197,10 @@ RULE_ID_TO_CATEGORY: dict[str, str] = {
     "AS1": PatternCategory.AGENT_SNOOPING.value,
     "AS2": PatternCategory.AGENT_SNOOPING.value,
     "AS3": PatternCategory.AGENT_SNOOPING.value,
+    # Anti-Refusal Statements (jailbreak)
+    "AR1": PatternCategory.ANTI_REFUSAL.value,
+    "AR2": PatternCategory.ANTI_REFUSAL.value,
+    "AR3": PatternCategory.ANTI_REFUSAL.value,
 }
 
 # Rule ID -> pattern display name (for report output)
@@ -259,6 +268,10 @@ PATTERN_NAMES: dict[str, str] = {
     "AS1": "Agent Config Directory Access",
     "AS2": "MCP Config Access",
     "AS3": "Skill Enumeration",
+    # Anti-Refusal Statements (jailbreak)
+    "AR1": "Refusal Suppression",
+    "AR2": "Disclaimer Suppression",
+    "AR3": "Safety Policy Nullification",
 }
 
 # Pattern-specific remediations (how to fix the issue)
@@ -345,6 +358,10 @@ DEFAULT_REMEDIATIONS: dict[str, str] = {
     "AS1": "Remove all code or instructions that access agent configuration directories (.claude/, .codex/, .gemini/). If configuration values are needed, pass them explicitly as parameters or environment variables — never read the agent's own config files.",
     "AS2": "Remove all code or instructions that read MCP configuration files (mcp.json). MCP server details should be managed by the agent runtime, not read by individual skills.",
     "AS3": "Remove all code or instructions that list or read other skills' files or directories. Skills should operate independently; cross-skill access is a privilege escalation.",
+    # Anti-Refusal Statements (jailbreak)
+    "AR1": "Remove any instruction telling the agent to never refuse or always comply. The agent must retain the ability to decline unsafe, out-of-scope, or harmful requests.",
+    "AR2": "Remove instructions that suppress warnings, disclaimers, or ethical commentary. Let the agent surface safety-relevant caveats to the user.",
+    "AR3": "Remove jailbreak framing that nullifies safety policies or restrictions. Skill content must not instruct the agent to ignore its guidelines or operate without guardrails.",
 }
 
 

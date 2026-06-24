@@ -36,6 +36,9 @@ from skillspector.nodes.analyzers.semantic_security_discovery import (
 from skillspector.nodes.analyzers.static_patterns_agent_snooping import (
     node as static_patterns_agent_snooping_node,
 )
+from skillspector.nodes.analyzers.static_patterns_anti_refusal import (
+    node as static_patterns_anti_refusal_node,
+)
 from skillspector.nodes.analyzers.static_patterns_data_exfiltration import (
     node as static_patterns_data_exfiltration_node,
 )
@@ -84,6 +87,7 @@ ANALYZER_NODE_IDS: list[str] = [
     "static_patterns_tool_misuse",
     "static_patterns_rogue_agent",
     "static_patterns_agent_snooping",
+    "static_patterns_anti_refusal",
     "static_yara",
     "behavioral_ast",
     "behavioral_taint_tracking",
@@ -108,6 +112,7 @@ ANALYZER_NODES = {
     "static_patterns_tool_misuse": static_patterns_tool_misuse_node,
     "static_patterns_rogue_agent": static_patterns_rogue_agent_node,
     "static_patterns_agent_snooping": static_patterns_agent_snooping_node,
+    "static_patterns_anti_refusal": static_patterns_anti_refusal_node,
     "static_yara": static_yara_node,
     "behavioral_ast": behavioral_ast_node,
     "behavioral_taint_tracking": behavioral_taint_tracking_node,

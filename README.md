@@ -19,7 +19,7 @@ SkillSpector helps you answer: **"Is this skill safe to install?"**
 ## Features
 
 - **Multi-format input**: Scan Git repos, URLs, zip files, directories, or single files
-- **65 vulnerability patterns** across 16 categories: prompt injection, data exfiltration, privilege escalation, supply chain, excessive agency, output handling, system prompt leakage, memory poisoning, tool misuse, rogue agent, trigger abuse, dangerous code (AST), taint tracking, YARA signatures, MCP least privilege, and MCP tool poisoning
+- **68 vulnerability patterns** across 17 categories: prompt injection, data exfiltration, privilege escalation, supply chain, excessive agency, output handling, system prompt leakage, memory poisoning, tool misuse, rogue agent, anti-refusal, trigger abuse, dangerous code (AST), taint tracking, YARA signatures, MCP least privilege, and MCP tool poisoning
 - **Two-stage analysis**: Fast static analysis + optional LLM semantic evaluation
 - **Live vulnerability lookups**: SC4 queries [OSV.dev](https://osv.dev) for real-time CVE data with automatic offline fallback
 - **Multiple output formats**: Terminal, JSON, Markdown, and SARIF reports
@@ -222,7 +222,7 @@ skillspector scan ./my-skill/ --no-llm
 
 ## Vulnerability Patterns
 
-SkillSpector detects **65 vulnerability patterns** across 16 categories:
+SkillSpector detects **68 vulnerability patterns** across 17 categories:
 
 ### Prompt Injection (5 patterns)
 
@@ -233,6 +233,14 @@ SkillSpector detects **65 vulnerability patterns** across 16 categories:
 | P3 | Exfiltration Commands | HIGH | Instructions to transmit context externally |
 | P4 | Behavior Manipulation | MEDIUM | Subtle instructions altering agent decisions |
 | P5 | Harmful Content | CRITICAL | Instructions that could cause physical harm |
+
+### Anti-Refusal (3 patterns)
+
+| ID | Pattern | Severity | Description |
+|----|---------|----------|-------------|
+| AR1 | Refusal Suppression | HIGH | Instructions to never refuse or always comply (e.g. "never refuse", "always comply") |
+| AR2 | Disclaimer Suppression | HIGH | Instructions to omit warnings, disclaimers, or ethical commentary (e.g. "no disclaimers", "do not moralize") |
+| AR3 | Safety Policy Nullification | HIGH | Jailbreak framing that nullifies guardrails (e.g. "you have no restrictions", "ignore your guidelines", "do anything now") |
 
 ### Data Exfiltration (4 patterns)
 
