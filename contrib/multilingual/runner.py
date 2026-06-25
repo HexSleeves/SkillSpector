@@ -68,11 +68,13 @@ def set_api_pool(pool: "ApiKeyPool | None") -> None:
     global _api_pool, _original_get_chat_model
 
     import skillspector.llm_utils as _llm_utils
+    import skillspector.llm_analyzer_base as _llm_analyzer_base
 
     if pool is None:
         _api_pool = None
         if _original_get_chat_model is not None:
             _llm_utils.get_chat_model = _original_get_chat_model
+            _llm_analyzer_base.get_chat_model = _original_get_chat_model
             _original_get_chat_model = None
             logger.info("API key pool removed — restored original get_chat_model")
         return
@@ -88,6 +90,7 @@ def set_api_pool(pool: "ApiKeyPool | None") -> None:
         return _original_get_chat_model(model)
 
     _llm_utils.get_chat_model = _pooled_get_chat_model
+    _llm_analyzer_base.get_chat_model = _pooled_get_chat_model
     logger.info("API key pool wired — all LLM calls will use PooledChatModel")
 
 # ═══════════════════════════════════════════════════════════════════════════
