@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import NoReturn
+from typing import NoReturn, TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
@@ -52,6 +52,32 @@ from skillspector.providers import (
     resolve_provider_credentials,
 )
 from skillspector.providers.openai import OpenAIProvider
+
+
+class LLMTokenUsage(TypedDict):
+    """Provider-normalized token usage for LLM calls."""
+
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+
+
+def empty_token_usage() -> LLMTokenUsage:
+    return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+
+def extract_token_usage(raw: object) -> LLMTokenUsage:
+    usage = getattr(raw, "usage_metadata", None) or {}
+    if not isinstance(usage, dict):
+        return empty_token_usage()
+    input_tokens = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
+    output_tokens = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
+    total_tokens = int(usage.get("total_tokens") or input_tokens + output_tokens)
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+    }
 
 
 def _resolve_llm_credentials() -> tuple[str, str | None]:
@@ -293,7 +319,17 @@ def chat_completion(prompt: str, *, model: str | None = None) -> str:
     which normalise content blocks to a single string) and falls back to
     ``.content`` for the CLI adapter's ``_AgentCLIMessage``.
     """
+    content, _usage = chat_completion_with_usage(prompt, model=model)
+    return content
+
+
+def chat_completion_with_usage(
+    prompt: str, *, model: str | None = None
+) -> tuple[str, LLMTokenUsage]:
+    """Request a chat completion and return its content and token usage."""
     response = get_chat_model(model=model).invoke(prompt)
     if hasattr(response, "text"):
-        return response.text  # type: ignore[union-attr]
-    return response.content or ""  # type: ignore[union-attr]
+        content = response.text
+    else:
+        content = response.content or ""
+    return content, extract_token_usage(response)

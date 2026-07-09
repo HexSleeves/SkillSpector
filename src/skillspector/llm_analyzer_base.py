@@ -30,12 +30,17 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Literal, TypedDict
+from typing import Literal
 
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field, field_validator
 
-from skillspector.llm_utils import get_chat_model
+from skillspector.llm_utils import (
+    LLMTokenUsage,
+    empty_token_usage,
+    extract_token_usage,
+    get_chat_model,
+)
 from skillspector.logging_config import get_logger
 from skillspector.model_info import get_max_input_tokens
 from skillspector.models import Finding
@@ -112,32 +117,6 @@ class LLMAnalysisResult(BaseModel):
     """Structured LLM response containing discovered findings."""
 
     findings: list[LLMFinding] = Field(default_factory=list)
-
-
-class LLMTokenUsage(TypedDict):
-    """Provider-normalized token usage for LLM calls."""
-
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
-
-
-def _empty_token_usage() -> LLMTokenUsage:
-    return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-
-
-def _extract_token_usage(raw: object) -> LLMTokenUsage:
-    usage = getattr(raw, "usage_metadata", None) or {}
-    if not isinstance(usage, dict):
-        return _empty_token_usage()
-    input_tokens = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
-    output_tokens = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
-    total_tokens = int(usage.get("total_tokens") or input_tokens + output_tokens)
-    return {
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "total_tokens": total_tokens,
-    }
 
 
 def _add_token_usage(total: LLMTokenUsage, usage: LLMTokenUsage) -> None:
@@ -311,7 +290,7 @@ class LLMAnalyzerBase:
             if self.response_schema
             else None
         )
-        self._llm_usage = _empty_token_usage()
+        self._llm_usage = empty_token_usage()
 
     @property
     def llm_usage(self) -> LLMTokenUsage:
@@ -319,10 +298,10 @@ class LLMAnalyzerBase:
         return dict(self._llm_usage)  # type: ignore[return-value]
 
     def _reset_llm_usage(self) -> None:
-        self._llm_usage = _empty_token_usage()
+        self._llm_usage = empty_token_usage()
 
     def _record_usage_from_raw(self, raw: object) -> None:
-        _add_token_usage(self._llm_usage, _extract_token_usage(raw))
+        _add_token_usage(self._llm_usage, extract_token_usage(raw))
 
     def _unwrap_structured_response(self, response: object) -> object:
         if not isinstance(response, dict) or not {"raw", "parsed", "parsing_error"} <= set(
