@@ -254,6 +254,17 @@ class TestRunStaticPatternsSupplyChain:
         findings = static_runner.run_static_patterns(state, [supply_chain_module])
         assert any(f.rule_id == "SC7" for f in findings)
 
+    def test_sc7_content_trust_explicitly_enabled_no_finding(self):
+        """`--disable-content-trust=false` keeps verification ON — must NOT yield SC7."""
+        state = {
+            "components": ["setup.sh"],
+            "file_cache": {
+                "setup.sh": "docker pull --disable-content-trust=false registry.io/base:1.0",
+            },
+        }
+        findings = static_runner.run_static_patterns(state, [supply_chain_module])
+        assert not any(f.rule_id == "SC7" for f in findings)
+
 
 class TestRunStaticPatternsAgentSnoopingAdditional:
     """run_static_patterns with agent_snooping: AS1, AS2, AS3."""

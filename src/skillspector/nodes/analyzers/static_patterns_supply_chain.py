@@ -103,7 +103,10 @@ SC3_PATTERNS = [
 # (`--tls-verify=false` is intentionally omitted: TM3's `verify=False` already
 # covers it; SC7 targets the image-specific bypasses TM3 does not see.)
 SC7_PATTERNS = [
-    (r"--disable-content-trust", 0.85),  # Docker Content Trust signature check off
+    (
+        r"--disable-content-trust\b(?!=false)",
+        0.85,
+    ),  # Content Trust off (exclude =false, which keeps it on)
     (r"DOCKER_CONTENT_TRUST\s*=\s*0", 0.85),  # signature verification disabled via env
     (r"--insecure-registry", 0.8),  # registry TLS verification off
 ]
