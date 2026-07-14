@@ -39,7 +39,12 @@ from skillspector.nodes.analyzers.pattern_defaults import (
     get_explanation,
     get_remediation,
 )
-from skillspector.state import MetaAnalyzerResponse, SkillspectorState, llm_call_record
+from skillspector.state import (
+    MetaAnalyzerResponse,
+    SkillspectorState,
+    llm_call_record,
+    zero_llm_usage,
+)
 
 logger = get_logger(__name__)
 
@@ -521,6 +526,7 @@ def meta_analyzer(state: SkillspectorState) -> MetaAnalyzerResponse:
     metadata_text = _format_metadata(manifest)
     files_with_findings = sorted({f.file for f in findings})
 
+    analyzer: LLMMetaAnalyzer | None = None
     try:
         # Construct inside the try so a chat-model construction failure is caught
         # and recorded as a degraded LLM call (consistent with the semantic
@@ -565,7 +571,7 @@ def meta_analyzer(state: SkillspectorState) -> MetaAnalyzerResponse:
         )
         return {
             "filtered_findings": filtered,
-            "llm_call_log": [llm_call_record("meta_analyzer", ok=True)],
+            "llm_call_log": [llm_call_record("meta_analyzer", ok=True, **analyzer.llm_usage)],
         }
     except ValueError:
         raise
@@ -573,5 +579,12 @@ def meta_analyzer(state: SkillspectorState) -> MetaAnalyzerResponse:
         logger.warning("LLM call failed, passing all findings through (fail-closed): %s", e)
         return {
             "filtered_findings": _passthrough_with_defaults(findings),
-            "llm_call_log": [llm_call_record("meta_analyzer", ok=False, error=str(e))],
+            "llm_call_log": [
+                llm_call_record(
+                    "meta_analyzer",
+                    ok=False,
+                    error=str(e),
+                    **(analyzer.llm_usage if analyzer is not None else zero_llm_usage()),
+                )
+            ],
         }

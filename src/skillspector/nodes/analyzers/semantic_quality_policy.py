@@ -27,10 +27,16 @@ import asyncio
 from skillspector.constants import _SKILLSPECTOR_DEFAULT_MODEL
 from skillspector.llm_analyzer_base import LLMAnalyzerBase
 from skillspector.logging_config import get_logger
-from skillspector.state import AnalyzerNodeResponse, SkillspectorState, llm_call_record
+from skillspector.state import (
+    AnalyzerNodeResponse,
+    SkillspectorState,
+    llm_call_record,
+    zero_llm_usage,
+)
 
 ANALYZER_ID = "semantic_quality_policy"
 logger = get_logger(__name__)
+
 
 ANALYZER_PROMPT = """\
 You are a quality and safety auditor for AI agent skills.  Your job is to
@@ -142,18 +148,29 @@ def node(state: SkillspectorState) -> AnalyzerNodeResponse:
         model_config.get(ANALYZER_ID) or model_config.get("default") or _SKILLSPECTOR_DEFAULT_MODEL
     )
 
+    analyzer: LLMAnalyzerBase | None = None
     try:
         analyzer = LLMAnalyzerBase(base_prompt=ANALYZER_PROMPT, model=model)
         batches = analyzer.get_batches(files, file_cache)
         results = asyncio.run(analyzer.arun_batches(batches))
         findings = analyzer.collect_findings(results)
         logger.info("%s: %d findings", ANALYZER_ID, len(findings))
-        return {"findings": findings, "llm_call_log": [llm_call_record(ANALYZER_ID, ok=True)]}
+        return {
+            "findings": findings,
+            "llm_call_log": [llm_call_record(ANALYZER_ID, ok=True, **analyzer.llm_usage)],
+        }
     except ValueError:
         raise
     except Exception as exc:
         logger.warning("%s failed: %s", ANALYZER_ID, exc)
         return {
             "findings": [],
-            "llm_call_log": [llm_call_record(ANALYZER_ID, ok=False, error=str(exc))],
+            "llm_call_log": [
+                llm_call_record(
+                    ANALYZER_ID,
+                    ok=False,
+                    error=str(exc),
+                    **(analyzer.llm_usage if analyzer is not None else zero_llm_usage()),
+                )
+            ],
         }
