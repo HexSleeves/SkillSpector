@@ -737,7 +737,7 @@ class TestClaudeCLIProvider:
 
     def test_resolve_model_empty_when_no_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # No model is pinned: with SKILLSPECTOR_MODEL unset, resolve_model is ""
-        # so the CLI runs with the user's OWN configured model (we omit --model).
+        # so the Claude CLI receives no explicit --model override.
         monkeypatch.delenv("SKILLSPECTOR_MODEL", raising=False)
         assert ClaudeCLIProvider().resolve_model() == ""
         assert ClaudeCLIProvider.DEFAULT_MODEL == ""

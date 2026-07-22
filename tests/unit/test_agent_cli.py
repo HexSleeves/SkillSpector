@@ -168,8 +168,7 @@ class TestBuildClaudeArgv:
         assert argv[idx + 1] == MODEL
 
     def test_model_flag_omitted_when_empty(self) -> None:
-        # No SKILLSPECTOR_MODEL -> resolve_model() is "" -> --model is omitted so
-        # claude runs with the user's OWN configured model (no pinned version).
+        # No SKILLSPECTOR_MODEL -> resolve_model() is "" -> --model is omitted.
         argv = _build_claude_argv(CLAUDE_BINARY, "", 4096)
         assert "--model" not in argv
 
