@@ -18,9 +18,8 @@
 Reads ``ANTHROPIC_API_KEY`` for credentials and honors ``ANTHROPIC_BASE_URL``
 as an explicit endpoint override (e.g. a local proxy); when unset, requests
 go to api.anthropic.com. Constructs ``langchain_anthropic.ChatAnthropic``
-directly. Defaults to Opus 4.6 for analyzers and Sonnet 4.6 for
-``meta_analyzer`` (cheaper for the high-volume filter pass), mirroring the
-policy used by ``NvInferenceProvider``.
+directly. It defaults to Opus 4.6 for analyzers and Sonnet 4.6 for
+``meta_analyzer`` (cheaper for the high-volume filter pass).
 """
 
 from __future__ import annotations
